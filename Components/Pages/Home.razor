@@ -1,0 +1,261 @@
+﻿@page "/"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Web
+@using MudBlazor
+@rendermode InteractiveServer
+
+<PageTitle>Weather Report</PageTitle>
+
+<MudContainer>
+    <div class="background-container" style="background-image: url('@backgroundImageUrl');">
+        <MudText Typo="Typo.h4" GutterBottom>Enter City</MudText>
+
+        <MudTextField @bind-Value="cityName" 
+                       
+                      Variant="Variant.Text" 
+                      ErrorText="Please enter a valid city name." 
+                      Error="@(!string.IsNullOrEmpty(errorMessage))"
+                      Immediate="true" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="GetWeatherData" class="animated-button">Fetch Weather</MudButton>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" class="animated-button">
+            <NavLink href="/weather">Weather Forecast</NavLink>
+        </MudButton>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" class="animated-button">
+            <NavLink href="/FavoriteCity">Favourite City</NavLink>
+        </MudButton>
+        
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error">
+                <div>
+                    <MudText Typo="Typo.body1">@errorMessage</MudText>
+                </div>
+            </MudAlert>
+        }
+
+        @if (weatherData != null)
+        {
+            <div class="weather-container">
+                <T>
+                    <MudTableBody>
+                        <MudTr>
+                            <MudTd>Country</MudTd>
+                            <MudTd>@weatherData.sys.country</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Temperature</MudTd>
+                            <MudTd>@weatherData.main.temp &deg;C</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Feels Like</MudTd>
+                            <MudTd>@weatherData.main.feels_like &deg;C</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Min Temperature</MudTd>
+                            <MudTd>@weatherData.main.temp_min &deg;C</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Max Temperature</MudTd>
+                            <MudTd>@weatherData.main.temp_max &deg;C</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Pressure</MudTd>
+                            <MudTd>@weatherData.main.pressure hPa</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Humidity</MudTd>
+                            <MudTd>@weatherData.main.humidity %</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Sea Level</MudTd>
+                            <MudTd>@weatherData.main.sea_level hPa</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Ground Level</MudTd>
+                            <MudTd>@weatherData.main.grnd_level hPa</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Wind Speed</MudTd>
+                            <MudTd>@weatherData.wind.speed m/s</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Wind Degree</MudTd>
+                            <MudTd>@weatherData.wind.deg &deg;</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Sunrise</MudTd>
+                            <MudTd>@DateTimeOffset.FromUnixTimeSeconds(weatherData.sys.sunrise).ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Sunset</MudTd>
+                            <MudTd>@DateTimeOffset.FromUnixTimeSeconds(weatherData.sys.sunset).ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Timezone</MudTd>
+                            <MudTd>@weatherData.timezone</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Description</MudTd>
+                            <MudTd>@weatherData.weather.FirstOrDefault()?.description</MudTd>
+                        </MudTr>
+                        <MudTr>
+                            <MudTd>Coordinates</MudTd>
+                            <MudTd>@weatherData.coord.lon, @weatherData.coord.lat</MudTd>
+                        </MudTr>
+                    </MudTableBody>
+                </T>
+            </div>
+        }
+
+        
+    </div>
+</MudContainer>
+<style>
+    .background-container {
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        padding: 20px;
+        min-height: 100vh;
+        box-sizing: border-box;
+        color: #333;
+        background-color: #f0f0f0; /* Fallback background color */
+    }
+
+    .weather-container {
+        background-color: rgba(255, 255, 255, 0.8); /* Optional: Add a white background with opacity to make text readable */
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .animated-button {
+        position: relative;
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background-color: #007bff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: background-color 0.4s ease, transform 0.4s ease;
+        margin-top: 10px; /* Added margin to space buttons */
+        text-decoration: none; /* Remove underline from button text */
+    }
+
+        .animated-button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        .animated-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.3);
+            transition: left 0.4s ease;
+        }
+
+        .animated-button:hover::before {
+            left: 100%;
+        }
+
+        .animated-button a {
+            color: white; /* Ensure the link text is white */
+            text-decoration: none; /* Remove underline from link text */
+        }
+
+            .animated-button a:hover {
+                color: white; /* Ensure the link text remains white on hover */
+            }
+</style>
+
+
+
+@code {
+    private WeatherData weatherData;
+    private string cityName;
+    private string ApiKey = "4d7d0912d819bc8ea0e6661d1cc2b571"; // Replace with your API key
+    private bool showFavorites;
+    private string errorMessage;
+    private string backgroundImageUrl = ""; // Ensure default or empty URL
+    private List<string> favoriteCities = new List<string> { "New York", "Los Angeles", "Chicago", "Houston", "Phoenix" };
+
+    [Inject] private HttpClient httpClient { get; set; }
+
+    private readonly Dictionary<string, string> weatherBackgroundImages = new()
+    {
+        { "clear sky", "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-1024.png" },
+        { "few clouds", "https://www.iconattitude.com/icons/open_icon_library/status/png/256/weather-few-clouds.png" },
+        { "scattered clouds", "https://cdn-icons-png.flaticon.com/512/414/414927.png" },
+        { "broken clouds", "https://tse2.mm.bing.net/th?id=OIP.5Vmu9YxdkSPX4PM4q9hPJQHaGr&pid=Api&P=0&h=180.png" },
+        { "shower rain", "https://tse2.mm.bing.net/th?id=OIP.AIGmJ8PNIw6wGVG1THV91gHaHa&pid=Api&P=0&h=180" },
+        { "rain", "https://tse2.mm.bing.net/th?id=OIP.Mnsr_qB7N_UUhXaczUmo5wHaHa&pid=Api&P=0&h=180.png" },
+        { "thunderstorm", "https://cdn-icons-png.flaticon.com/512/1959/1959334.png" },
+        { "snow", "https://tse1.mm.bing.net/th?id=OIP.KcVM3hhio_5Qki69N4Ms1gHaHa&pid=Api&P=0&h=180" },
+        { "mist", "https://cdn-icons-png.flaticon.com/512/4005/4005901.png" }
+    };
+
+    private async Task GetWeatherData()
+    {
+        errorMessage = null; // Clear any previous errors
+        if (string.IsNullOrWhiteSpace(cityName))
+        {
+            errorMessage = "Please enter a valid city name.";
+            backgroundImageUrl = ""; // Reset background image
+            return;
+        }
+
+        try
+        {
+            string apiUrl = $"https://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={ApiKey}&units=metric";
+            weatherData = await httpClient.GetFromJsonAsync<WeatherData>(apiUrl);
+
+            if (weatherData == null || weatherData.cod != 200)
+            {
+                errorMessage = "No data found for the specified city or an error occurred.";
+                weatherData = null; // Clear data if there's an error
+                backgroundImageUrl = "https://tse3.explicit.bing.net/th?id=OIP.XUDSVg8uIjmP1u9A-CII9AHaE8&pid=Api&P=0&h=180.png"; // Reset background image
+            }
+            else
+            {
+                UpdateBackgroundImageUrl();
+                errorMessage = null; // Clear error message if data is found
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred: " + ex.Message;
+            weatherData = null; // Clear data on error
+            backgroundImageUrl = ""; // Reset background image
+        }
+    }
+
+    private void UpdateBackgroundImageUrl()
+    {
+        if (weatherData != null && weatherData.weather != null && weatherData.weather.Count > 0)
+        {
+            string weatherDescription = weatherData.weather[0].description;
+            weatherBackgroundImages.TryGetValue(weatherDescription, out backgroundImageUrl);
+
+            if (string.IsNullOrEmpty(backgroundImageUrl))
+            {
+                backgroundImageUrl = "https://tse1.mm.bing.net/th?id=OIP.AIGmJ8PNIw6wGVG1THV91gHaHa&pid=Api&P=0&h=180.png"; // Fallback background image
+            }
+        }
+    }
+
+    
+}
