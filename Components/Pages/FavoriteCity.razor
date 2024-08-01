@@ -1,0 +1,275 @@
+﻿@page "/FavoriteCity"
+@using System.Net.Http.Json
+@using MudBlazor
+@using weather.Services
+@inject NavigationManager Navigation
+@inject FavoriteCityService FavoriteCityService
+@inject HttpClient httpClient
+
+@rendermode InteractiveServer
+
+<PageTitle>Favorite Cities</PageTitle>
+
+<MudContainer Class="page-container">
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Class="animated-button" @onclick="NavigateToHome">
+        <MudIcon Icon="Icons.Material.Filled.ArrowBack" /> Back to Home
+    </MudButton>
+
+    <MudText Typo="Typo.h4" GutterBottom>Add Favorite City</MudText>
+
+    <MudTextField @bind-Value="newCityName"
+                  Label="Enter a city name"
+                  Variant="Variant.Text"
+                  Error="@(!string.IsNullOrEmpty(errorMessage))"
+                  ErrorText="@errorMessage" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="animated-button" @onclick="AddFavoriteCity">Add Favorite City</MudButton>
+
+    @if (isLoading)
+    {
+        <MudText Typo="Typo.h6" GutterBottom>Loading...</MudText>
+    }
+    else if (favoriteCitiesWeather.Count > 0)
+    {
+        <MudTable Items="@favoriteCitiesWeather" Striped="false" Bordered="true" Elevation="1">
+            <HeaderContent>
+                <MudTh Class="table-header">City</MudTh>
+                <MudTh Class="table-header">Country</MudTh>
+                <MudTh Class="table-header">Temperature</MudTh>
+                <MudTh Class="table-header">Feels Like</MudTh>
+                <MudTh Class="table-header">Min Temperature</MudTh>
+                <MudTh Class="table-header">Max Temperature</MudTh>
+                <MudTh Class="table-header">Pressure</MudTh>
+                <MudTh Class="table-header">Humidity</MudTh>
+                <MudTh Class="table-header">Wind Speed</MudTh>
+                <MudTh Class="table-header">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="City" Class="table-cell">@context.Name</MudTd>
+                <MudTd DataLabel="Country" Class="table-cell">@context.Country</MudTd>
+                <MudTd DataLabel="Temperature" Class="table-cell">@context.Temperature &deg;C</MudTd>
+                <MudTd DataLabel="Feels Like" Class="table-cell">@context.FeelsLike &deg;C</MudTd>
+                <MudTd DataLabel="Min Temperature" Class="table-cell">@context.MinTemperature &deg;C</MudTd>
+                <MudTd DataLabel="Max Temperature" Class="table-cell">@context.MaxTemperature &deg;C</MudTd>
+                <MudTd DataLabel="Pressure" Class="table-cell">@context.Pressure hPa</MudTd>
+                <MudTd DataLabel="Humidity" Class="table-cell">@context.Humidity %</MudTd>
+                <MudTd DataLabel="Wind Speed" Class="table-cell">@context.WindSpeed m/s</MudTd>
+                <MudTd DataLabel="Actions" Class="table-cell">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Class="animated-button" @onclick="@(() => RemoveFavoriteCity(context.Name))">Remove</MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudText Typo="Typo.h6" GutterBottom>No favorite cities added yet.</MudText>
+    }
+</MudContainer>
+
+<style>
+    .page-container {
+        background-image: url('https://cdn.wallpapersafari.com/13/90/yc8Sh5.jpg');
+        background-size: cover;
+        background-position: center;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .table-header {
+        border: 1px solid black;
+        padding: 8px;
+        background-color: #f0f0f0;
+        text-align: center;
+    }
+
+    .table-cell {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: center;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .animated-button {
+        position: relative;
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        overflow: hidden;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+
+        .animated-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300%;
+            height: 300%;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            z-index: 0;
+            transform: translate(-50%, -50%) scale(0);
+        }
+
+        .animated-button:hover::before {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .animated-button:hover {
+            color: white;
+            background-color: var(--mud-palette-primary);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+</style>
+
+@code {
+    private string newCityName;
+    private string errorMessage;
+    private List<CityWeather> favoriteCitiesWeather = new List<CityWeather>();
+    private string ApiKey = "4d7d0912d819bc8ea0e6661d1cc2b571"; // Replace with your API key
+    private bool isLoading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadFavoriteCities();
+
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddFavoriteCity()
+    {
+        errorMessage = null; // Clear previous error messages
+
+        if (string.IsNullOrWhiteSpace(newCityName))
+        {
+            errorMessage = "Please enter a valid city name with only alphabets.";
+            return;
+        }
+
+        // Validate that the input contains only letters and spaces
+        if (!newCityName.All(c => char.IsLetter(c) || char.IsWhiteSpace(c)))
+        {
+            errorMessage = "Please enter a city name with only alphabets.";
+            return;
+        }
+
+        var cityWeather = await FetchWeatherData(newCityName);
+        if (cityWeather != null)
+        {
+            await FavoriteCityService.AddFavoriteCityAsync(newCityName); // Persist the city
+            favoriteCitiesWeather.Add(cityWeather);
+            newCityName = string.Empty; // Clear the input field after adding
+        }
+        else
+        {
+            errorMessage = "Could not find weather data for the specified city.";
+        }
+    }
+
+    private void RemoveFavoriteCity(string cityName)
+    {
+        favoriteCitiesWeather.RemoveAll(c => c.Name == cityName);
+        FavoriteCityService.RemoveFavoriteCityAsync(cityName); // Persist the removal
+    }
+
+    private async Task<CityWeather> FetchWeatherData(string cityName)
+    {
+        try
+        {
+            string apiUrl = $"https://api.openweathermap.org/data/2.5/weather?q={cityName}&appid={ApiKey}&units=metric";
+            var weatherData = await httpClient.GetFromJsonAsync<WeatherData>(apiUrl);
+
+            if (weatherData != null && weatherData.cod == 200)
+            {
+                return new CityWeather
+                    {
+                        Name = cityName,
+                        Country = weatherData.sys.country,
+                        Temperature = weatherData.main.temp,
+                        FeelsLike = weatherData.main.feels_like,
+                        MinTemperature = weatherData.main.temp_min,
+                        MaxTemperature = weatherData.main.temp_max,
+                        Pressure = weatherData.main.pressure,
+                        Humidity = weatherData.main.humidity,
+                        WindSpeed = weatherData.wind.speed
+                    };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error fetching weather data: " + ex.Message);
+        }
+
+        return null;
+    }
+
+    private async Task LoadFavoriteCities()
+    {
+        var favoriteCities = await FavoriteCityService.GetFavoriteCitiesAsync();
+        foreach (var city in favoriteCities)
+        {
+            var cityWeather = await FetchWeatherData(city);
+            if (cityWeather != null)
+            {
+                favoriteCitiesWeather.Add(cityWeather);
+            }
+        }
+    }
+
+    private void NavigateToHome()
+    {
+        Navigation.NavigateTo("/", true);
+    }
+
+    private class CityWeather
+    {
+        public string Name { get; set; }
+        public string Country { get; set; }
+        public double Temperature { get; set; }
+        public double FeelsLike { get; set; }
+        public double MinTemperature { get; set; }
+        public double MaxTemperature { get; set; }
+        public int Pressure { get; set; }
+        public int Humidity { get; set; }
+        public double WindSpeed { get; set; }
+    }
+
+    private class WeatherData
+    {
+        public Main main { get; set; }
+        public Sys sys { get; set; }
+        public Wind wind { get; set; }
+        public int cod { get; set; }
+
+        public class Main
+        {
+            public double temp { get; set; }
+            public double feels_like { get; set; }
+            public double temp_min { get; set; }
+            public double temp_max { get; set; }
+            public int pressure { get; set; }
+            public int humidity { get; set; }
+        }
+
+        public class Sys
+        {
+            public string country { get; set; }
+        }
+
+        public class Wind
+        {
+            public double speed { get; set; }
+        }
+    }
+}

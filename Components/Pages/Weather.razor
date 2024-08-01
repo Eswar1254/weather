@@ -1,0 +1,222 @@
+﻿@page "/weather"
+@using System.Net.Http
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@rendermode InteractiveServer
+
+
+<PageTitle>Weather Forecast</PageTitle>
+
+<button class="back-button" @onclick="NavigateToHome">Back to Home</button>
+
+<h3>Weather Forecast for a Specific Date</h3>
+
+<div class="input-container">
+    <label for="city">Enter City: </label>
+    <input type="text" id="city" @bind="city" />
+</div>
+<div class="input-container">
+    <label for="date">Enter Date: </label>
+    <input type="date" id="date" @bind="selectedDate" />
+</div>
+<button class="fetch-button" @onclick="FetchWeather">Fetch Weather</button>
+
+@if (isLoading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (forecastData == null || !forecastData.Any())
+{
+    <p>No data available. Please enter a city and date, then click Fetch Weather.</p>
+}
+else
+{
+    <div class="weather-forecast">
+        @foreach (var forecast in forecastData.GroupBy(f => f.Date).Select(g => g.First()))
+        {
+            <div class="forecast-item">
+                <p>Date: @forecast.Date.ToString("dd/MM/yyyy")</p>
+                <p>Temperature: @forecast.TemperatureC &deg;C</p>
+                <p>Summary: @forecast.Summary</p>
+                <p>
+                    <img src="@GetWeatherIcon(forecast.Summary)" alt="@forecast.Summary" class="icon" />
+                </p>
+            </div>
+        }
+    </div>
+}
+
+<style>
+    body {
+        background-image: url('http://www.pixelstalk.net/wp-content/uploads/2016/07/Weather-Photo.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        color: white;
+        font-family: Arial, sans-serif;
+    }
+
+    .back-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+
+        .back-button:hover {
+            background-color: #0056b3;
+            transform: scale(1.1);
+        }
+
+    .input-container {
+        margin: 20px 0;
+    }
+
+    .fetch-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+        .fetch-button:hover {
+            background-color: #0056b3;
+            transform: scale(1.1);
+        }
+
+    .weather-forecast {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .forecast-item {
+        flex: 1 1 calc(33.333% - 20px); /* Adjust width for 3 items per row */
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .icon {
+        width: 50px;
+        height: auto;
+        animation: iconAnimation 2s infinite;
+    }
+</style>
+
+@code {
+    private List<WeatherForecast> forecastData;
+    private string city;
+    private DateTime selectedDate = DateTime.Now;
+    private bool isLoading = false;
+
+    private async Task FetchWeather()
+    {
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            Console.WriteLine("Please enter a city name.");
+            return;
+        }
+
+        isLoading = true;
+        forecastData = new List<WeatherForecast>();
+
+        var apiKey = "4d7d0912d819bc8ea0e6661d1cc2b571";
+        var apiUrl = $"https://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&appid={apiKey}";
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<OpenWeatherMapResponse>(apiUrl);
+            if (response?.List == null)
+            {
+                Console.WriteLine("No data returned from API.");
+                return;
+            }
+
+            var filteredData = response.List
+                .Select(item => new WeatherForecast
+                    {
+                        Date = DateTimeOffset.FromUnixTimeSeconds(item.Dt).DateTime.Date,
+                        TemperatureC = item.Main.Temp,
+                        Summary = item.Weather[0].Description
+                    })
+                .Where(f => f.Date >= selectedDate.Date.AddDays(-2) && f.Date <= selectedDate.Date.AddDays(2))
+                .Distinct()
+                .ToList();
+
+            forecastData = filteredData;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching weather data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetWeatherIcon(string summary)
+    {
+        return summary.ToLower() switch
+        {
+            "clear sky" => "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-1024.png",
+            "few clouds" => "https://www.iconattitude.com/icons/open_icon_library/status/png/256/weather-few-clouds.png",
+            "scattered clouds" => "https://cdn-icons-png.flaticon.com/512/414/414927.png",
+            "broken clouds" => "https://tse2.mm.bing.net/th?id=OIP.5Vmu9YxdkSPX4PM4q9hPJQHaGr&pid=Api&P=0&h=180.png",
+            "shower rain" => "https://tse2.mm.bing.net/th?id=OIP.AIGmJ8PNIw6wGVG1THV91gHaHa&pid=Api&P=0&h=180",
+            "rain" => "https://tse2.mm.bing.net/th?id=OIP.Mnsr_qB7N_UUhXaczUmo5wHaHa&pid=Api&P=0&h=180.png",
+            "thunderstorm" => "https://cdn-icons-png.flaticon.com/512/1959/1959334.png",
+            "snow" => "https://tse1.mm.bing.net/th?id=OIP.KcVM3hhio_5Qki69N4Ms1gHaHa&pid=Api&P=0&h=180",
+            "mist" => "https://cdn-icons-png.flaticon.com/512/4005/4005901.png",
+            _ => "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-1024.png",
+        };
+    }
+
+    private void NavigateToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private class WeatherForecast
+    {
+        public DateTime Date { get; set; }
+        public float TemperatureC { get; set; }
+        public string Summary { get; set; }
+    }
+
+    private class OpenWeatherMapResponse
+    {
+        public List<WeatherData> List { get; set; }
+    }
+
+    private class WeatherData
+    {
+        public int Dt { get; set; }
+        public Main Main { get; set; }
+        public List<WeatherDescription> Weather { get; set; }
+    }
+
+    private class Main
+    {
+        public float Temp { get; set; }
+    }
+
+    private class WeatherDescription
+    {
+        public string Description { get; set; }
+    }
+}
+
